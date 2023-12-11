@@ -1,1 +1,1 @@
-from .smartcheck_analisists import smartcheck_analisists
+from .smartcheck_analyst import smartcheck_analisists
