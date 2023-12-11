@@ -1,5 +1,3 @@
-
-
 class Prompt:
 
     def __init__(self, engine, temperature, max_tokens, type, prompt):
@@ -28,7 +26,6 @@ class Prompt:
     @property
     def engine(self):
         return self._engine
-
 
 # class PromptEnum(StrEnum):
 #     COMPLETION = 'completion'
