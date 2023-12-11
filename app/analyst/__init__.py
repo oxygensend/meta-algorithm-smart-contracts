@@ -1,0 +1,1 @@
+from .smartcheck_analisists import smartcheck_analisists

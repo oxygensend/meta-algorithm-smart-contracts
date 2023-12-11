@@ -7,7 +7,7 @@ COPY ./app /src/app
 COPY .solhint.json /src/.solhint.json
 COPY ./contracts /src/contracts
 
-#RUN  pip install -r /src/requirements.txt
+ENV PIP_ROOT_USER_ACTION=ignore
 
 
 RUN apt-get update && apt-get -y dist-upgrade;
@@ -23,6 +23,7 @@ RUN cd Python-3.7.16  && \
         make -j8 build_all  && \
         make -j8 altinstall  && \
         ldconfig /usr/local/share/python3.7
+
 
 
 # Solhint
@@ -74,7 +75,7 @@ RUN solc-select install 0.5.2  && \
         solc-select use 0.5.2
 
 
-
+RUN  pip install -r /src/requirements.txt
 
 
 
