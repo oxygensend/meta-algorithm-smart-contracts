@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from openai import RateLimitError
 from urllib3.exceptions import ReadTimeoutError
 
-from app.chatGPT.prompt import Prompt
+from .prompt import Prompt
 import os
 import time
 
@@ -14,16 +14,17 @@ load_dotenv()
 
 
 class ChatGPT:
-    COMPLETION = 'COMPLETION'
     CHAT = 'CHAT'
 
-    def __init__(self):
+    def __init__(self, version: str = 'gpt3.5-turbo', tokens: int = 2048):
         self.key = os.getenv("OPENAI_API_KEY")
+        self.version = version
+        self.tokens = tokens
 
     def ask_gpt(self, question: str, attempt: int = 0):
         try:
             openai.api_key = self.key
-            prompt = Prompt("gpt-4", 0.68, 4096, ChatGPT.CHAT, question)
+            prompt = Prompt(self.version, 0.68, self.tokens, ChatGPT.CHAT, question)
             return self._create_response(prompt)
         except RateLimitError:
             logging.warning(
@@ -45,18 +46,10 @@ class ChatGPT:
             return self.ask_gpt(question, attempt + 1)
 
     def _create_response(self, prompt: Prompt):
-        if prompt.type == ChatGPT.COMPLETION:
-            return openai.Completion.create(
-                engine=prompt.engine,
-                prompt=prompt.prompt,
-                temperature=prompt.max_temperature,
-                max_tokens=prompt.max_tokens,
-            )['choices'][0]
-        elif prompt.type == ChatGPT.CHAT:
-            message = {'role': 'user', 'content': prompt.prompt}
-            return openai.ChatCompletion.create(
-                model=prompt.engine,
-                temperature=prompt.max_temperature,
-                max_tokens=prompt.max_tokens,
-                messages=[message]
-            )['choices'][0]['message']['content']
+        message = {'role': 'user', 'content': prompt.prompt}
+        return openai.ChatCompletion.create(
+            model=prompt.engine,
+            temperature=prompt.max_temperature,
+            max_tokens=prompt.max_tokens,
+            messages=[message]
+        )['choices'][0]['message']['content']

@@ -1,5 +1,8 @@
+import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from analyst import smartcheck_analyst, securify_analyst
+# from app.menu import Menu
+import logging
 
 
 def run_concurrently(file_path):
@@ -14,4 +17,37 @@ def run_concurrently(file_path):
         print("Smartcheck output:", result_smartcheck)
 
 
-run_concurrently("../contracts/testContract.sol")
+def run(file_path, version, lang, gpt_version, tokens):
+    print("Running with arguments:")
+    print("Contract file path:", file_path)
+    print("Solidity version:", version)
+    print("Output language:", lang)
+    print("GPT version:", gpt_version)
+    print("Tokens:", tokens)
+    run_concurrently("../contracts/testContract.sol")
+
+
+def validate_contract(file_path):
+    try:
+        command = f'solc {file_path} --combined-json abi,bin'
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        if result.returncode == 0:
+            logging.info(f"Contract compiled successfully!")
+            return True
+        else:
+            logging.error(f"Contract compilation failed with errors: {result.stderr}")
+            return False
+    except Exception as e:
+        logging.error(f"Invalid contract file: {e}")
+        return False
+
+
+if __name__ == '__main__':
+    if validate_contract("../contracts/testContract.sol"):
+        run_concurrently("../contracts/testContract.sol")
+    else:
+        print("Invalid contract file")
+        exit(-4)
+    # run_concurrently("../contracts/testContract.sol")
+    # Menu().run(run)
