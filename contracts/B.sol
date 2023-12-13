@@ -1,163 +1,185 @@
-pragma solidity ^0.8.9;
+// A chain-game contract that maintains a 'throne' which agents may pay to rule.
+// See www.kingoftheether.com & https://github.com/kieranelby/KingOfTheEtherThrone .
+// (c) Kieran Elby 2016. All rights reserved.
+// v0.4.0.
+// Inspired by ethereumpyramid.com and the (now-gone?) "magnificent bitcoin gem".
 
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP.
- */
-interface IERC20 {
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
+// This contract lives on the blockchain at 0xb336a86e2feb1e87a328fcb7dd4d04de3df254d0
+// and was compiled (using optimization) with:
+// Solidity version: 0.2.1-fad2d4df/.-Emscripten/clang/int linked to libethereum
 
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+// For future versions it would be nice to ...
+// TODO - enforce time-limit on reign (can contracts do that without external action)?
+// TODO - add a random reset?
+// TODO - add bitcoin bridge so agents can pay in bitcoin?
+// TODO - maybe allow different return payment address?
+pragma solidity ^0.4.19;
 
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
+contract KingOfTheEtherThrone {
 
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `to`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address to, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `from` to `to` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-}
-
-contract Vulnerability {
-    address private USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    mapping(address => uint256) public balances;
-    uint256 public lotteryWinningNumber;
-    address public owner;
-
-    constructor(){
-        owner = msg.sender;
+    struct Monarch {
+        // Address to which their compensation will be sent.
+        address etherAddress;
+        // A name by which they wish to be known.
+        // NB: Unfortunately "string" seems to expose some bugs in web3.
+        string name;
+        // How much did they pay to become monarch?
+        uint claimPrice;
+        // When did their rule start (based on block.timestamp)?
+        uint coronationTimestamp;
     }
 
-    //Using strict equality is a vulnerability
-    function fund_reached() public view returns (bool) {
-        return address(this).balance == 100 ether;
+    // The wizard is the hidden power behind the throne; they
+    // occupy the throne during gaps in succession and collect fees.
+    address wizardAddress;
+
+    // Used to ensure only the wizard can do some things.
+    modifier onlywizard { if (msg.sender == wizardAddress) _; }
+
+    // How much must the first monarch pay?
+    uint constant startingClaimPrice = 100 finney;
+
+    // The next claimPrice is calculated from the previous claimFee
+    // by multiplying by claimFeeAdjustNum and dividing by claimFeeAdjustDen -
+    // for example, num=3 and den=2 would cause a 50% increase.
+    uint constant claimPriceAdjustNum = 3;
+    uint constant claimPriceAdjustDen = 2;
+
+    // How much of each claimFee goes to the wizard (expressed as a fraction)?
+    // e.g. num=1 and den=100 would deduct 1% for the wizard, leaving 99% as
+    // the compensation fee for the usurped monarch.
+    uint constant wizardCommissionFractionNum = 1;
+    uint constant wizardCommissionFractionDen = 100;
+
+    // How much must an agent pay now to become the monarch?
+    uint public currentClaimPrice;
+
+    // The King (or Queen) of the Ether.
+    Monarch public currentMonarch;
+
+    // Earliest-first list of previous throne holders.
+    Monarch[] public pastMonarchs;
+
+    // Create a new throne, with the creator as wizard and first ruler.
+    // Sets up some hopefully sensible defaults.
+    function KingOfTheEtherThrone() {
+        wizardAddress = msg.sender;
+        currentClaimPrice = startingClaimPrice;
+        currentMonarch = Monarch(
+            wizardAddress,
+            "[Vacant]",
+            0,
+            block.timestamp
+        );
     }
 
-    //from field is dangerous to use in this case because if Person A has given allowance to this contract for some amount of tokens,
-    //Person B can easily transfer those tokens to his own account
-    function USDCTransfer(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) public {
-        IERC20(USDC).transferFrom(_from, _to, _amount);
+    function numberOfMonarchs() constant returns (uint n) {
+        return pastMonarchs.length;
     }
 
-    //anyone can kill the contract and claim any funds to their own address
-    function kill() public {
-        selfdestruct(payable(msg.sender));
+    // Fired when the throne is claimed.
+    // In theory can be used to help build a front-end.
+    event ThroneClaimed(
+        address usurperEtherAddress,
+        string usurperName,
+        uint newClaimPrice
+    );
+
+    // Fallback function - simple transactions trigger this.
+    // Assume the message data is their desired name.
+    function() {
+        claimThrone(string(msg.data));
     }
 
-    //Using delegate should only be done on trusted contracts. so _to address should not be given here
-    function delegate(address _to, bytes memory _data) public {
-        (bool result, ) = _to.delegatecall(_data);
-    }
+    // Claim the throne for the given name by paying the currentClaimFee.
+    function claimThrone(string name) {
 
-    //Reentrancy attack. Balances variable is being updated after transfer here.
-    function withdraw(uint256 _amount) public {
-        if (balances[msg.sender] >= _amount) {
-            (bool result, ) = msg.sender.call{value: _amount}("");
-            require(result, "Could not transfer");
-            balances[msg.sender] -= _amount;
+        uint valuePaid = msg.value;
+
+        // If they paid too little, reject claim and refund their money.
+        if (valuePaid < currentClaimPrice) {
+            msg.sender.send(valuePaid);
+            return;
         }
+
+        // If they paid too much, continue with claim but refund the excess.
+        if (valuePaid > currentClaimPrice) {
+            uint excessPaid = valuePaid - currentClaimPrice;
+            msg.sender.send(excessPaid);
+            valuePaid = valuePaid - excessPaid;
+        }
+
+        // The claim price payment goes to the current monarch as compensation
+        // (with a commission held back for the wizard). We let the wizard's
+        // payments accumulate to avoid wasting gas sending small fees.
+
+        uint wizardCommission = (valuePaid * wizardCommissionFractionNum) / wizardCommissionFractionDen;
+
+        uint compensation = valuePaid - wizardCommission;
+
+        if (currentMonarch.etherAddress != wizardAddress) {
+            currentMonarch.etherAddress.send(compensation);
+        } else {
+            // When the throne is vacant, the fee accumulates for the wizard.
+        }
+
+        // Usurp the current monarch, replacing them with the new one.
+        pastMonarchs.push(currentMonarch);
+        currentMonarch = Monarch(
+            msg.sender,
+            name,
+            valuePaid,
+            block.timestamp
+        );
+
+        // Increase the claim fee for next time.
+        // Stop number of trailing decimals getting silly - we round it a bit.
+        uint rawNewClaimPrice = currentClaimPrice * claimPriceAdjustNum / claimPriceAdjustDen;
+        if (rawNewClaimPrice < 10 finney) {
+            currentClaimPrice = rawNewClaimPrice;
+        } else if (rawNewClaimPrice < 100 finney) {
+            currentClaimPrice = 100 szabo * (rawNewClaimPrice / 100 szabo);
+        } else if (rawNewClaimPrice < 1 ether) {
+            currentClaimPrice = 1 finney * (rawNewClaimPrice / 1 finney);
+        } else if (rawNewClaimPrice < 10 ether) {
+            currentClaimPrice = 10 finney * (rawNewClaimPrice / 10 finney);
+        } else if (rawNewClaimPrice < 100 ether) {
+            currentClaimPrice = 100 finney * (rawNewClaimPrice / 100 finney);
+        } else if (rawNewClaimPrice < 1000 ether) {
+            currentClaimPrice = 1 ether * (rawNewClaimPrice / 1 ether);
+        } else if (rawNewClaimPrice < 10000 ether) {
+            currentClaimPrice = 10 ether * (rawNewClaimPrice / 10 ether);
+        } else {
+            currentClaimPrice = rawNewClaimPrice;
+        }
+
+        // Hail the new monarch!
+        ThroneClaimed(currentMonarch.etherAddress, currentMonarch.name, currentClaimPrice);
     }
 
-    //Using of Block.timestamp, blockhash and now in random number generation is highly discouraged
-    //Use of Chainlink VRF is preferred.
-    function winLottery() external{
-      lotteryWinningNumber = uint256(block.timestamp) % 10;
+    // Used only by the wizard to collect his commission.
+    function sweepCommission(uint amount) onlywizard {
+        wizardAddress.send(amount);
     }
 
-    uint256 amt;
-    //Dividing first can cause serious problems if b is greater than a.
-    //So always multiply first and then divide
-    function divideBeforeMultiply(uint256 a, uint256 b, uint256 c) public{
-        amt = (a / b) * c;
+    // Used only by the wizard to collect his commission.
+    function transferOwnership(address newOwner) onlywizard {
+        wizardAddress = newOwner;
     }
+  function echidna_alwaystrue() public returns (bool){
+    return(true);
+  }
 
-    //Avoid usage of Tx.origin 
-    function txOriginExploit(uint256 _amount) public{
-        require(tx.origin == owner);
-        withdraw(_amount);
-    }
+  function echidna_alwaystrue2() public returns (bool){
+    return(true);
+  }
 
-    //Since to is not initialized. It will be 0x0 address. and all money will be lost
-    function transferMoney() payable public{
-        address to;
-        (bool result, ) = to.call{value: address(this).balance}("");
-        require(result, "Could not transfer");
-    }
+  function echidna_alwaystrue3() public returns (bool){
+    return(true);
+  }
 
+  function echidna_revert_always() public returns (bool){
+    revert();
+  }
 
-//The below shows the incorrect usage of storage and memory variables
-    uint[1] public x; // storage
-
-    function f() public {
-        f1(x); // update x
-        f2(x); // do not update x
-    }
-
-    function f1(uint[1] storage arr) internal { // by reference
-        arr[0] = 1;
-    }
-
-    function f2(uint[1] memory arr) internal pure{ // by value
-        arr[0] = 2;
-    }
 }

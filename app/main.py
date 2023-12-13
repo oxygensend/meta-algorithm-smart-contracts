@@ -1,7 +1,7 @@
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from analyst import smartcheck_analyst, securify_analyst, solhint_analyst, slither_analyst
-# from app.menu import Menu
+from menu import Menu
 import logging
 
 
@@ -26,13 +26,41 @@ def run_concurrently(file_path):
 
 
 def run(file_path, version, lang, gpt_version, tokens):
+    changeSolidityVersion(version)
+
+    if validate_contract(file_path):
+        run_concurrently(file_path)
+    else:
+        print("Invalid contract file")
+        exit(-4)
+
     print("Running with arguments:")
     print("Contract file path:", file_path)
     print("Solidity version:", version)
     print("Output language:", lang)
     print("GPT version:", gpt_version)
     print("Tokens:", tokens)
-    run_concurrently("../contracts/testContract.sol")
+    # run_concurrently("../contracts/testContract.sol")
+
+
+def changeSolidityVersion(version):
+    try:
+        # Install and use the specified version
+        install_command = f'solc-select install {version}'
+        use_command = f'solc-select use {version}'
+        
+        subprocess.run(install_command, shell=True, check=True)
+        subprocess.run(use_command, shell=True, check=True)
+
+        logging.info(f"Solidity version changed to {version} successfully!")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to change Solidity version. Error: {e}")
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return False
 
 
 def validate_contract(file_path):
@@ -52,10 +80,5 @@ def validate_contract(file_path):
 
 
 if __name__ == '__main__':
-    if validate_contract("../contracts/testContract.sol"):
-        run_concurrently("../contracts/testContract.sol")
-    else:
-        print("Invalid contract file")
-        exit(-4)
     # run_concurrently("../contracts/testContract.sol")
-    # Menu().run(run)
+    Menu().run(run)

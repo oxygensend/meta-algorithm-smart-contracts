@@ -1,6 +1,6 @@
 import argparse
 
-from app.chatGPT import Query
+from chatGPT import Query
 
 
 class Menu:
