@@ -1,6 +1,6 @@
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
-from analyst import smartcheck_analyst, securify_analyst
+from analyst import smartcheck_analyst, securify_analyst, solhint_analyst, slither_analyst
 # from app.menu import Menu
 import logging
 
@@ -9,12 +9,20 @@ def run_concurrently(file_path):
     with ProcessPoolExecutor() as executor:
         future_securify = executor.submit(securify_analyst, file_path)
         future_smartcheck = executor.submit(smartcheck_analyst, file_path)
+        future_solhint = executor.submit(solhint_analyst, file_path)
+        future_slither = executor.submit(slither_analyst, file_path)
+
 
         result_securify = future_securify.result()
         result_smartcheck = future_smartcheck.result()
+        result_solhint = future_solhint.result()
+        result_slither = future_slither.result()
 
         print("Securify output:", result_securify)
         print("Smartcheck output:", result_smartcheck)
+        print("Solhint output:", result_solhint)
+        print("Slither output:", result_slither)
+
 
 
 def run(file_path, version, lang, gpt_version, tokens):
