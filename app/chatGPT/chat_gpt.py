@@ -3,8 +3,8 @@ import threading
 
 import openai
 from dotenv import load_dotenv
-from openai import RateLimitError
 from urllib3.exceptions import ReadTimeoutError
+from openai.error import RateLimitError
 
 from .prompt import Prompt
 import os
@@ -16,7 +16,7 @@ load_dotenv()
 class ChatGPT:
     CHAT = 'CHAT'
 
-    def __init__(self, version: str = 'gpt3.5-turbo', tokens: int = 2048):
+    def __init__(self, version: str = 'gpt-3.5-turbo', tokens: int = 2048):
         self.key = os.getenv("OPENAI_API_KEY")
         self.version = version
         self.tokens = tokens

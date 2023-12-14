@@ -3,9 +3,8 @@ class Query:
         def __init__(self, question: str):
             self.question = question
 
-        def builder(self, db_details: str, lang: str):
-            language = Query.Lang.map_to_full_name(lang)
-            return self.question % (db_details, language)
+        def builder(self, slither: str, solhint: str, securify: str, smartcheck: str):
+            return self.question % (securify, solhint, slither, smartcheck)
 
     class Lang:
         PL = "PL"
@@ -30,4 +29,4 @@ class Query:
                 raise Exception("Invalid language")
 
     GENERATE_TABLE = Question(
-        "I will provide you with outputs from smart contract frameworks Securify, SmartCheck, Slither and Solhint. Based on the provided information, generate JSON in that will group the errors by the frameworks. You should return only JSON in format: {error1: [Securify, Solhint], error2: [Slihter, Solhint, Securify, Smartcheck]}")
+        "I will provide you with outputs from smart contract frameworks Securify, SmartCheck, Slither and Solhint. Based on the provided information, generate JSON in that will group the errors by the frameworks. Sometimes errors have different names but mean the same. Take into considerations all errors. You should return only JSON in format: {error_name: list_of_frameworks}. securify: %s, solhint: %s, slither: %s, smartcheck: %s")
