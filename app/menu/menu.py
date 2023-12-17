@@ -23,4 +23,4 @@ class Menu:
             print("Invalid arguments: use --version to specify Solidity version")
             exit(1)
 
-        runnable(args.contract, args.version, lang, args.gpt_version, args.tokens)
+        runnable(args.contract, args.version, lang, args.gpt_version, int(args.tokens))

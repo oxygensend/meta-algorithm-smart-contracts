@@ -1,1 +1,6 @@
 .idea
+data
+.env
+
+__pycache__/
+*.py[cod]

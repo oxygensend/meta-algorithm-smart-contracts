@@ -18,6 +18,7 @@ class ChatGPT:
 
     def __init__(self, version: str = 'gpt-3.5-turbo', tokens: int = 2048):
         self.key = os.getenv("OPENAI_API_KEY")
+        # self.key = "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"
         self.version = version
         self.tokens = tokens
 
@@ -25,6 +26,7 @@ class ChatGPT:
         try:
             openai.api_key = self.key
             prompt = Prompt(self.version, 0.68, self.tokens, ChatGPT.CHAT, question)
+            logging.info(f"Thread [{threading.current_thread().name}] Asking question {question}")
             return self._create_response(prompt)
         except RateLimitError:
             logging.warning(

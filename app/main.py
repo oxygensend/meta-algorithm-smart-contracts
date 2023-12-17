@@ -1,6 +1,11 @@
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
+
+from dotenv import load_dotenv
+
 from analyst import smartcheck_analyst, securify_analyst, solhint_analyst, slither_analyst
+from markdown import MarkdownGenerator
+from config import delete_data_dir
 from chatGPT import ChatGPT, Query
 from menu import Menu
 import logging
@@ -13,16 +18,16 @@ def run_concurrently(file_path):
         future_solhint = executor.submit(solhint_analyst, file_path)
         future_slither = executor.submit(slither_analyst, file_path)
 
-        result_securify = future_securify.result(),
-        result_smartcheck = future_smartcheck.result(),
-        result_solhint = future_solhint.result(),
-        result_slither = future_slither.result(),
+        result_securify = future_securify.result()
+        result_smartcheck = future_smartcheck.result()
+        result_solhint = future_solhint.result()
+        result_slither = future_slither.result()
 
         print("Securify output:", result_securify)
         print("Smartcheck output:", result_smartcheck)
         print("Solhint output:", result_solhint)
         print("Slither output:", result_slither)
-        return result_securify, result_smartcheck, result_solhint, result_slither
+        return result_securify[0], result_smartcheck[0], result_solhint[0], result_slither[0]
 
 
 def run(file_path, version, lang, gpt_version, tokens):
@@ -42,10 +47,20 @@ def run(file_path, version, lang, gpt_version, tokens):
     print("Tokens:", tokens)
 
     chat = ChatGPT(gpt_version, tokens)
-    question = Query.GENERATE_TABLE.builder(result_securify, result_solhint, result_slither, result_smartcheck)
-    print(question)
+    grouped_errors = group_errors(chat, result_securify, result_solhint, result_slither, result_smartcheck)
+    print(grouped_errors)
+
+    with open(file_path, 'r') as f:
+        raw_contract = f.read()
+
+    MarkdownGenerator.generate(grouped_errors, raw_contract)
+
+
+def group_errors(chat, securify, solhint, slither, smartcheck):
+    question = Query.GENERATE_TABLE.builder(securify, solhint, slither, smartcheck)
     result = chat.ask_gpt(question)
-    print(result)
+    logging.info(f"Chatbot response: {result}")
+    return eval(result)
 
 
 def changeSolidityVersion(version):
@@ -86,4 +101,11 @@ def validate_contract(file_path):
 
 if __name__ == '__main__':
     # run_concurrently("../contracts/testContract.sol")
+    load_dotenv()
+    logging.basicConfig()
+    logging.root.setLevel(logging.NOTSET)
+    logging.basicConfig(level=logging.NOTSET)
+
+    delete_data_dir()
+
     Menu().run(run)
