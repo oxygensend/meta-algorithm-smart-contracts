@@ -23,6 +23,8 @@ def securify_analyst(file_path):
                .replace('[0;31m', '')
                .replace('\x1b', ''))
         save_output('securify_output.txt', out)
+    else:
+        out = "Framework doesn't work"
     if err != '':
         save_output('securify_error.txt', err)
 

@@ -23,11 +23,11 @@ def run_concurrently(file_path):
         result_solhint = future_solhint.result()
         result_slither = future_slither.result()
 
-        print("Securify output:", result_securify)
-        print("Smartcheck output:", result_smartcheck)
-        print("Solhint output:", result_solhint)
-        print("Slither output:", result_slither)
-        return result_securify[0], result_smartcheck[0], result_solhint[0], result_slither[0]
+        print("Securify output:", result_securify[0])
+        print("Smartcheck output:", result_smartcheck[0])
+        print("Solhint output:", result_solhint[0])
+        print("Slither output:", result_slither[0])
+        return result_securify[0], result_smartcheck[0], result_solhint[0], result_slither[1]
 
 
 def run(file_path, version, lang, gpt_version, tokens):
@@ -49,15 +49,25 @@ def run(file_path, version, lang, gpt_version, tokens):
     chat = ChatGPT(gpt_version, tokens)
     grouped_errors = group_errors(chat, result_securify, result_solhint, result_slither, result_smartcheck)
     print(grouped_errors)
-
     with open(file_path, 'r') as f:
         raw_contract = f.read()
 
-    MarkdownGenerator.generate(grouped_errors, raw_contract)
+    suggs = suggestions(chat, raw_contract, result_securify, result_solhint, result_slither, result_smartcheck)
+    print(suggs)
+
+    MarkdownGenerator.generate(grouped_errors, raw_contract, suggs)
 
 
 def group_errors(chat, securify, solhint, slither, smartcheck):
     question = Query.GENERATE_TABLE.builder(securify, solhint, slither, smartcheck)
+    result = chat.ask_gpt(question)
+    logging.info(f"Chatbot response: {result}")
+    return eval(result)
+
+
+def suggestions(chat, code, securify, solhint, slither, smartcheck):
+    errors = securify + '\n' + solhint + '\n' + slither + '\n' + smartcheck
+    question = Query.SUGGESTIONS.builder_suggestions(code, errors)
     result = chat.ask_gpt(question)
     logging.info(f"Chatbot response: {result}")
     return eval(result)

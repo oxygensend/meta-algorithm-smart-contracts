@@ -14,4 +14,4 @@ def delete_data_dir():
     if os.path.exists(DATA_DIR):
         for file in os.listdir(DATA_DIR):
             os.remove(os.path.join(DATA_DIR, file))
-        os.rmdir(DATA_DIR)
+        # os.rmdir(DATA_DIR)
