@@ -3,28 +3,44 @@ from config import data_dir
 
 class MarkdownGenerator:
     @classmethod
-    def generate(cls, grouped_errors: dict, raw_contract: str, suggestions: dict):
-        markdown = cls._generate_markdown(grouped_errors, raw_contract, suggestions)
+    def generate(cls, grouped_errors: dict, raw_contract: str, suggestions: dict, contract_description: str, detailed_errors: str):
+        markdown = cls._generate_markdown(grouped_errors, raw_contract, suggestions, contract_description, detailed_errors)
         cls._save_markdown(markdown)
 
     @classmethod
-    def _generate_markdown(cls, grouped_erros: dict, raw_contract: str, suggestions: dict) -> str:
+    def _generate_markdown(cls, grouped_erros: dict, raw_contract: str, suggestions: dict, contract_description: str, detailed_errors: str) -> str:
         markdown = ""
         markdown += cls._generate_contract_code(raw_contract)
+        markdown += cls._generate_contract_description(contract_description)
         markdown += cls._generate_grouped_errors_table(grouped_erros)
+        markdown += cls._generate_detailed_errors_table(detailed_errors)
         markdown += cls._generate_suggestions_list(suggestions["suggestions"])
         markdown += cls._generate_fixed_code(suggestions["fixed_code"])
         return markdown
 
     @classmethod
+    def _generate_contract_description(cls, contract_description: str):
+        markdown = "## Smart Contract Description\n"
+        markdown += f'This description is AI generated. \n\n'
+        markdown += f"{contract_description} \n\n\n"
+        return markdown
+
+    @classmethod
     def _generate_contract_code(cls, contract_code: str):
-        markdown = "## Contract\n"
+        markdown = "## Smart Contract Code\n"
         markdown += f"```solidity\n {contract_code} \n ```\n\n"
         return markdown
 
     @classmethod
     def _generate_grouped_errors_table(cls, grouped_errors: dict):
-        markdown = ""
+        markdown = "## Grouped Errors\n"
+        markdown += cls._generate_grouped_errors_table_headers()
+        markdown += cls._generate_grouped_errors_table_content(grouped_errors);
+        return markdown
+
+    @classmethod
+    def _generate_detailed_errors_table(cls, grouped_errors: dict):
+        markdown = "## Detailed Errors\n"
         markdown += cls._generate_grouped_errors_table_headers()
         markdown += cls._generate_grouped_errors_table_content(grouped_errors);
         return markdown
@@ -39,10 +55,10 @@ class MarkdownGenerator:
     def _generate_grouped_errors_table_content(cls, grouped_errors: dict):
         markdown = ""
         for error, frameworks in grouped_errors.items():
-            securify = "&check;" if "securify" in frameworks else ""
-            solhint = "&check;" if "solhint" in frameworks else ""
-            slither = "&check;" if "slither" in frameworks else ""
-            smartcheck = "&check;" if "smartcheck" in frameworks else ""
+            securify = "&check;" if "securify" in frameworks or "Securify" in frameworks else ""
+            solhint = "&check;" if "solhint" in frameworks or "Solhint" in frameworks else ""
+            slither = "&check;" if "slither" in frameworks or "Slither" in frameworks else ""
+            smartcheck = "&check;" if "smartcheck" in frameworks or "Smartcheck" in frameworks else ""
             markdown += f"| {error} | {securify} | {solhint} | {slither} | {smartcheck}|\n"
         return markdown
 
@@ -65,5 +81,5 @@ class MarkdownGenerator:
 
     @classmethod
     def _save_markdown(cls, markdown: str):
-        with open(data_dir('report.md'), 'w') as f:
+        with open('/src/app/data/report.md', 'w') as f:
             f.write(markdown)

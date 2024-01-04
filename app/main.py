@@ -55,11 +55,21 @@ def run(file_path, version, lang, gpt_version, tokens):
     suggs = suggestions(chat, raw_contract, result_securify, result_solhint, result_slither, result_smartcheck)
     print(suggs)
 
-    MarkdownGenerator.generate(grouped_errors, raw_contract, suggs)
+    descr = description(chat, raw_contract)
+
+    detailed_errors = detailed(chat, result_securify, result_solhint, result_slither, result_smartcheck)
+
+    MarkdownGenerator.generate(grouped_errors, raw_contract, suggs, descr, detailed_errors)
 
 
 def group_errors(chat, securify, solhint, slither, smartcheck):
     question = Query.GENERATE_TABLE.builder(securify, solhint, slither, smartcheck)
+    result = chat.ask_gpt(question)
+    logging.info(f"Chatbot response: {result}")
+    return eval(result)
+
+def detailed(chat, securify, solhint, slither, smartcheck):
+    question = Query.GENERATE_DEATILED_TABLE.builder_details(securify, solhint, slither, smartcheck)
     result = chat.ask_gpt(question)
     logging.info(f"Chatbot response: {result}")
     return eval(result)
@@ -71,6 +81,12 @@ def suggestions(chat, code, securify, solhint, slither, smartcheck):
     result = chat.ask_gpt(question)
     logging.info(f"Chatbot response: {result}")
     return eval(result)
+
+def description(chat, code):
+    question = Query.DESCRIPTION.builder_description(code)
+    result = chat.ask_gpt(question)
+    logging.info(f"Chatbot response: {result}")
+    return result
 
 
 def changeSolidityVersion(version):
