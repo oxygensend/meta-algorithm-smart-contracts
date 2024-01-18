@@ -3,12 +3,15 @@ from config import data_dir
 
 class MarkdownGenerator:
     @classmethod
-    def generate(cls, grouped_errors: dict, raw_contract: str, suggestions: dict, contract_description: str, detailed_errors: str):
-        markdown = cls._generate_markdown(grouped_errors, raw_contract, suggestions, contract_description, detailed_errors)
+    def generate(cls, grouped_errors: dict, raw_contract: str, suggestions: dict, contract_description: str,
+                 detailed_errors: str):
+        markdown = cls._generate_markdown(grouped_errors, raw_contract, suggestions, contract_description,
+                                          detailed_errors)
         cls._save_markdown(markdown)
 
     @classmethod
-    def _generate_markdown(cls, grouped_erros: dict, raw_contract: str, suggestions: dict, contract_description: str, detailed_errors: str) -> str:
+    def _generate_markdown(cls, grouped_erros: dict, raw_contract: str, suggestions: dict, contract_description: str,
+                           detailed_errors: str) -> str:
         markdown = ""
         markdown += cls._generate_contract_code(raw_contract)
         markdown += cls._generate_contract_description(contract_description)
@@ -81,5 +84,5 @@ class MarkdownGenerator:
 
     @classmethod
     def _save_markdown(cls, markdown: str):
-        with open('/src/app/data/report.md', 'w') as f:
+        with open(data_dir('report.md'), 'w') as f:
             f.write(markdown)
